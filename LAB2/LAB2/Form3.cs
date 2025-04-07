@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-
+using System.IO;
 namespace lab2
 {
     public partial class Form3 : Form
@@ -19,7 +19,8 @@ namespace lab2
 
         private void button1_Click(object sender, EventArgs e)
         {
-
+           
+                
         }
     }
 }
