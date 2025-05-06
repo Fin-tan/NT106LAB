@@ -43,14 +43,14 @@ namespace LAB3
         private void ServerThread()
         {
             bai4_chat_server ChatServer = new bai4_chat_server();
-            ChatServer.ShowDialog();
+            ChatServer.Show();
         }
 
 
         private void ClientThread()
         {
             bai4_chat_client ChatClient = new bai4_chat_client();
-            ChatClient.ShowDialog();
+            ChatClient.Show();
         }
 
         private void client_Click(object sender, EventArgs e)

@@ -42,7 +42,7 @@ namespace LAB3
         {
             InfoMessage("Waiting for connetion");
             int bytesRecv = 0;
-            byte[] recv = new byte[1];
+            byte[] recv = new byte[1024];
             Socket clientSocket;
 
             Socket listenerSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);

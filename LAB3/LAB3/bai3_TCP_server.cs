@@ -23,34 +23,35 @@ namespace LAB3
 
         private void InitializeComponent()
         {
-            this.listen = new Button();
-            this.listBox1 = new ListBox();
+            listen = new Button();
+            listBox1 = new ListBox();
             SuspendLayout();
             // 
             // listen
             // 
-            this.listen.Location = new Point(331, 39);
-            this.listen.Name = "listen";
-            this.listen.Size = new Size(75, 23);
-            this.listen.TabIndex = 0;
-            this.listen.Text = "listen";
-            this.listen.UseVisualStyleBackColor = true;
-            this.listen.Click += this.listen_Click;
+            listen.Location = new Point(331, 39);
+            listen.Name = "listen";
+            listen.Size = new Size(75, 23);
+            listen.TabIndex = 0;
+            listen.Text = "listen";
+            listen.UseVisualStyleBackColor = true;
+            listen.Click += listen_Click;
             // 
             // listBox1
             // 
-            this.listBox1.FormattingEnabled = true;
-            this.listBox1.Location = new Point(29, 105);
-            this.listBox1.Name = "listBox1";
-            this.listBox1.Size = new Size(377, 199);
-            this.listBox1.TabIndex = 1;
+            listBox1.FormattingEnabled = true;
+            listBox1.Location = new Point(29, 105);
+            listBox1.Name = "listBox1";
+            listBox1.Size = new Size(377, 199);
+            listBox1.TabIndex = 1;
             // 
             // bai3_TCP_server
             // 
             ClientSize = new Size(492, 335);
-            Controls.Add(this.listBox1);
-            Controls.Add(this.listen);
+            Controls.Add(listBox1);
+            Controls.Add(listen);
             Name = "bai3_TCP_server";
+            Load += bai3_TCP_server_Load;
             ResumeLayout(false);
 
         }
@@ -106,6 +107,14 @@ namespace LAB3
             {
                 MessageBox.Show(ex.Message);
             }
+        }
+        private void bai3_TCP_server_Load(object sender, EventArgs e)
+        {
+
+        }
+        private void bai3_TCP_server_Formclosing(object sender, EventArgs e)
+        {
+            listenerSocket.Close();
         }
     }
 }
