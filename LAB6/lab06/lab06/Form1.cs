@@ -1,36 +1,50 @@
-﻿using System;
+﻿// Form1.cs - Updated to match Client.cs functionality
+using System;
 using System.Drawing;
 using System.IO;
 using System.Net.Sockets;
 using System.Threading;
 using System.Windows.Forms;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement; // This line might be removable if no longer needed.
 
 namespace lab06
 {
     public partial class Form1 : Form
     {
-        private TcpClient client;
-        private NetworkStream stream;
-        private BinaryReader reader;
-        private BinaryWriter writer;
-        private Thread listenThread;
+        private TcpClient? client; // Changed to nullable
+        private NetworkStream? stream; // Changed to nullable
+        private BinaryReader? reader; // Changed to nullable
+        private BinaryWriter? writer; // Changed to nullable
+        private Thread? listenThread; // Changed to nullable
 
-        private Bitmap canvasBmp;
-        private Graphics canvasG;
+        private Bitmap? canvasBmp; // Changed to nullable
+        private Graphics? canvasG; // Changed to nullable
         private readonly object canvasLock = new object();
 
         private bool drawing = false;
         private Point lastPoint;
         private Color currentColor = Color.Black;
         private int currentThickness = 2;
+        private bool isEraser = false; // Added for eraser functionality
+
+        // New fields for image pasting/manipulation
+        private PictureBox? tempBox;
+        private bool isDragging = false;
+        private Point dragOffset;
+        private bool isResizing = false;
+        private Size resizeStartSize;
+        private Point resizeStartPoint;
+        private const int ResizeHandleSize = 10;
 
         public Form1()
         {
             InitializeComponent();
-
+            this.DoubleBuffered = true;
+            typeof(Panel).InvokeMember("DoubleBuffered", System.Reflection.BindingFlags.SetProperty | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic, null, panelCanvas, new object[] { true }); // Enable double buffering for smoother drawing
             // Gán sự kiện
             this.Load += Form1_Load;
+            this.KeyPreview = true; // Enable form-level key events for Ctrl+V
+            this.KeyDown += Form1_KeyDown; // Added for Ctrl+V handling
 
             btnConnect.Click += BtnConnect_Click;
             btnColor.Click += BtnColor_Click;
@@ -46,11 +60,30 @@ namespace lab06
             panelCanvas.MouseUp += PanelCanvas_MouseUp;
 
             lblClientCount.Text = "Clients: 0";
+            // NOTE: To fully match the sample, you might need to add a CheckBox
+            // named 'cbEraser' and a Button named 'btnSave' in your Form1.Designer.cs
+            // and uncomment the following lines.
+            // cbEraser.CheckedChanged += CbEraser_CheckedChanged;
+            // btnSave.Click += BtnSave_Click;
         }
+
+        // Placeholder for BtnSave_Click. User needs to add btnSave control.
+        private void BtnSave_Click(object sender, EventArgs e)
+        {
+            SaveWhiteboardToFile();
+        }
+
+        // Placeholder for CbEraser_CheckedChanged. User needs to add cbEraser control.
+        private void CbEraser_CheckedChanged(object sender, EventArgs e)
+        {
+            // Assuming cbEraser is a CheckBox control
+            isEraser = ((CheckBox)sender).Checked;
+        }
+
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            // Khởi tạo bitmap sau khi panelCanvas đã có kích thước từ Designer
+            // Initialize bitmap after panelCanvas has acquired its size from Designer
             canvasBmp = new Bitmap(panelCanvas.Width, panelCanvas.Height);
             canvasG = Graphics.FromImage(canvasBmp);
             canvasG.Clear(Color.White);
@@ -73,8 +106,8 @@ namespace lab06
             if (client != null && client.Connected)
                 return;
 
-            string ip="127.0.0.1";
-            int port = 4871; // Phải khớp port server
+            string ip = "127.0.0.1";
+            int port = 4871; // Must match server port
 
             try
             {
@@ -103,11 +136,11 @@ namespace lab06
                     string cmd;
                     try
                     {
-                        cmd = reader.ReadString();
+                        cmd = reader!.ReadString(); // Use null-forgiving operator as it's checked by while condition
                     }
                     catch
                     {
-                        break;
+                        break; // Exit loop on read error (e.g., server disconnected)
                     }
 
                     switch (cmd)
@@ -125,9 +158,9 @@ namespace lab06
                             Invoke(new Action(() =>
                             {
                                 MessageBox.Show("Server đã đóng kết nối.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                                CleanupAndReset();
+                                ClientClose(false); // Call updated ClientClose without sending END again
                             }));
-                            return;
+                            return; // Exit thread after server closes
                         default:
                             break;
                     }
@@ -135,11 +168,13 @@ namespace lab06
             }
             catch
             {
-                // ignore
+                // Ignore other exceptions in the listen thread
             }
             finally
             {
-                Invoke(new Action(() => CleanupAndReset()));
+                // This will be invoked after the loop breaks or an error occurs,
+                // ensuring cleanup even if the server disconnects unexpectedly.
+                Invoke(new Action(() => ClientClose(false))); // Call updated ClientClose
             }
         }
 
@@ -147,7 +182,7 @@ namespace lab06
         {
             try
             {
-                int x1 = reader.ReadInt32();
+                int x1 = reader!.ReadInt32();
                 int y1 = reader.ReadInt32();
                 int x2 = reader.ReadInt32();
                 int y2 = reader.ReadInt32();
@@ -158,7 +193,7 @@ namespace lab06
                 lock (canvasLock)
                 {
                     using var pen = new Pen(color, width);
-                    canvasG.DrawLine(pen, new Point(x1, y1), new Point(x2, y2));
+                    canvasG!.DrawLine(pen, new Point(x1, y1), new Point(x2, y2));
                 }
                 Invoke(new Action(() => panelCanvas.Invalidate()));
             }
@@ -168,11 +203,12 @@ namespace lab06
             }
         }
 
+        // Form1.cs
         private void ReceiveImage()
         {
             try
             {
-                int length = reader.ReadInt32();
+                int length = reader!.ReadInt32();
                 byte[] data = reader.ReadBytes(length);
                 Bitmap bmp;
                 using (var ms = new MemoryStream(data))
@@ -181,12 +217,12 @@ namespace lab06
                 }
                 lock (canvasLock)
                 {
-                    canvasG.Dispose();
-                    canvasBmp.Dispose();
-                    canvasBmp = bmp;
+                    canvasG?.Dispose();
+                    canvasBmp?.Dispose();
+                    canvasBmp = bmp; // Gán bitmap mới nhận được
                     canvasG = Graphics.FromImage(canvasBmp);
                 }
-                Invoke(new Action(() => panelCanvas.Invalidate()));
+                Invoke(new Action(() => panelCanvas.Invalidate())); // Cập nhật hiển thị trên panelCanvas
             }
             catch
             {
@@ -198,7 +234,7 @@ namespace lab06
         {
             try
             {
-                int count = reader.ReadInt32();
+                int count = reader!.ReadInt32();
                 Invoke(new Action(() => lblClientCount.Text = $"Clients: {count}"));
             }
             catch
@@ -209,25 +245,29 @@ namespace lab06
 
         private void PanelCanvas_MouseDown(object sender, MouseEventArgs e)
         {
-            if (client == null || !client.Connected) return;
+            if (client == null || !client.Connected || canvasBmp == null) return; // Added null check for canvasBmp
             drawing = true;
             lastPoint = e.Location;
-            // Gửi một nét zero-length để server biết start; server của bạn xử lý DRAW liên tục
+            // Send a zero-length line to notify server of start; your server handles continuous DRAW
             SendDraw(lastPoint, lastPoint);
         }
 
         private void PanelCanvas_MouseMove(object sender, MouseEventArgs e)
         {
-            if (!drawing || client == null || !client.Connected) return;
+            if (!drawing || client == null || !client.Connected || canvasBmp == null) return; // Added null check for canvasBmp
+
             Point newPoint = e.Location;
-            SendDraw(lastPoint, newPoint);
-            // Vẽ local để mượt
+            SendDraw(lastPoint, newPoint); // Send to server
+
+            // Draw locally for smooth experience
             lock (canvasLock)
             {
-                using var pen = new Pen(currentColor, currentThickness);
-                canvasG.DrawLine(pen, lastPoint, newPoint);
+                using (var pen = new Pen(isEraser ? Color.White : currentColor, currentThickness)) // Use isEraser
+                {
+                    canvasG!.DrawLine(pen, lastPoint, newPoint);
+                }
             }
-            Invoke(new Action(() => panelCanvas.Invalidate()));
+            panelCanvas.Invalidate(); // Redraw the panel with the local drawing
             lastPoint = newPoint;
         }
 
@@ -239,6 +279,7 @@ namespace lab06
 
         private void SendDraw(Point p1, Point p2)
         {
+            if (writer == null) return; // Added null check for writer
             try
             {
                 writer.Write("DRAW");
@@ -246,22 +287,26 @@ namespace lab06
                 writer.Write(p1.Y);
                 writer.Write(p2.X);
                 writer.Write(p2.Y);
-                writer.Write(currentColor.ToArgb());
+                writer.Write((isEraser ? Color.White : currentColor).ToArgb()); // Use isEraser
                 writer.Write(currentThickness);
                 writer.Flush();
             }
-            catch
+            catch (Exception ex)
             {
-                Invoke(new Action(() => CleanupAndReset()));
+                // The sample code has a MessageBox here.
+                MessageBox.Show("Lỗi khi gửi DRAW: " + ex.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                // Consider calling ClientClose() here if the error indicates a broken connection
             }
         }
 
         private void BtnColor_Click(object sender, EventArgs e)
         {
-            using var dlg = new ColorDialog();
-            if (dlg.ShowDialog() == DialogResult.OK)
+            using (var cld = new ColorDialog())
             {
-                currentColor = dlg.Color;
+                if (cld.ShowDialog() == DialogResult.OK)
+                {
+                    currentColor = cld.Color;
+                }
             }
         }
 
@@ -272,73 +317,247 @@ namespace lab06
 
         private void BtnEnd_Click(object sender, EventArgs e)
         {
-            if (client != null && client.Connected)
-            {
-                // Lưu ảnh local
-                try
-                {
-                    string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
-                        $"whiteboard_{DateTime.Now:yyyyMMdd_HHmmss}.png");
-                    lock (canvasLock)
-                    {
-                        canvasBmp.Save(path);
-                    }
-                }
-                catch
-                {
-                    // ignore lưu lỗi
-                }
-                // Gửi END để server xóa client
-                try
-                {
-                    writer.Write("END");
-                    writer.Flush();
-                }
-                catch { }
-                CleanupAndReset();
-            }
-            else
-            {
-                this.Close();
-            }
-        }
-
-        private void CleanupAndReset()
-        {
-            try
-            {
-                client?.Close();
-            }
-            catch { }
-            client = null;
-            stream = null;
-            reader = null;
-            writer = null;
-            // Reset UI
-            btnConnect.Enabled = true;
-            lock (canvasLock)
-            {
-                if (canvasBmp != null)
-                {
-                    canvasG.Clear(Color.White);
-                }
-            }
-            lblClientCount.Text = "Clients: 0";
-            panelCanvas.Invalidate();
+            ClientClose();
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
-            if (client != null && client.Connected)
+            ClientClose(); // Call updated ClientClose
+            base.OnFormClosing(e);
+        }
+
+        private void ClientClose(bool sendServerEnd = true)
+        {
+            // Prompt to save whiteboard before closing
+            var res = MessageBox.Show("Lưu whiteboard trước khi thoát?", "Thông báo", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+            if (res == DialogResult.Yes)
+                SaveWhiteboardToFile();
+
+            try
             {
-                try
+                if (client != null && writer != null && sendServerEnd)
                 {
                     writer.Write("END");
                     writer.Flush();
                 }
-                catch { }
             }
-            base.OnFormClosing(e);
+            catch (Exception ex)
+            {
+                MessageBox.Show("Lỗi khi gửi lệnh END: " + ex.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                // Dispose and nullify network objects
+                client?.Close(); // Use Close() directly if Dispose() is not explicitly needed for TcpClient
+                                 // TcpClient's Close() method typically handles stream disposal.
+                client = null;
+                stream?.Dispose(); // Dispose NetworkStream
+                stream = null;
+                reader?.Dispose(); // Dispose BinaryReader
+                reader = null;
+                writer?.Dispose(); // Dispose BinaryWriter
+                writer = null;
+
+                // Reset UI elements
+                Invoke(new Action(() =>
+                {
+                    btnConnect.Enabled = true;
+                    // Reset canvas to white
+                    lock (canvasLock)
+                    {
+                        if (canvasBmp != null)
+                        {
+                            canvasG?.Clear(Color.White);
+                        }
+                    }
+                    lblClientCount.Text = "Clients: 0";
+                    panelCanvas.Invalidate();
+                }));
+            }
+            this.Hide(); // Hide the form instead of closing directly based on sample's ClientClose
+        }
+
+        private void SaveWhiteboardToFile()
+        {
+            if (canvasBmp == null) return;
+            using (var sfd = new SaveFileDialog())
+            {
+                sfd.Filter = "PNG Image|*.png|JPEG Image|*.jpg;*.jpeg";
+                if (sfd.ShowDialog() == DialogResult.OK)
+                {
+                    Bitmap clone;
+                    lock (canvasLock) clone = new Bitmap(canvasBmp); // Create a clone to save
+
+                    var ext = Path.GetExtension(sfd.FileName).ToLower();
+                    var fmt = ext == ".jpg" || ext == ".jpeg"
+                                  ? System.Drawing.Imaging.ImageFormat.Jpeg
+                                  : System.Drawing.Imaging.ImageFormat.Png;
+
+                    clone.Save(sfd.FileName, fmt);
+                    clone.Dispose(); // Dispose the clone
+                }
+            }
+        }
+
+        private void Form1_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Control && e.KeyCode == Keys.V && Clipboard.ContainsImage())
+            {
+                var img = Clipboard.GetImage();
+                if (img != null) CreateTempPictureBox(img);
+            }
+        }
+
+        private void CreateTempPictureBox(Image image)
+        {
+            // Remove any existing tempBox first
+            if (tempBox != null)
+            {
+                panelCanvas.Controls.Remove(tempBox);
+                tempBox.Dispose();
+                tempBox = null;
+            }
+
+            tempBox = new PictureBox
+            {
+                Image = image,
+                SizeMode = PictureBoxSizeMode.StretchImage,
+                BorderStyle = BorderStyle.FixedSingle,
+                Size = new Size(200, 150), // Initial size
+                Location = new Point(100, 100), // Initial location
+                Cursor = Cursors.SizeAll
+            };
+
+            tempBox.MouseDown += (s, e) =>
+            {
+                Point resizeHandleArea = new Point(tempBox.Width - ResizeHandleSize, tempBox.Height - ResizeHandleSize);
+                Rectangle resizeRect = new Rectangle(resizeHandleArea.X, resizeHandleArea.Y, ResizeHandleSize, ResizeHandleSize);
+
+                if (resizeRect.Contains(e.Location))
+                {
+                    isResizing = true;
+                    resizeStartSize = tempBox.Size;
+                    resizeStartPoint = e.Location;
+                    tempBox.Cursor = Cursors.SizeNWSE;
+                }
+                else
+                {
+                    isDragging = true;
+                    dragOffset = e.Location;
+                    tempBox.Cursor = Cursors.SizeAll;
+                }
+            };
+
+            tempBox.MouseMove += (s, e) =>
+            {
+                if (isResizing)
+                {
+                    int newWidth = resizeStartSize.Width + (e.Location.X - resizeStartPoint.X);
+                    int newHeight = resizeStartSize.Height + (e.Location.Y - resizeStartPoint.Y);
+
+                    newWidth = Math.Max(newWidth, 20); // Minimum size
+                    newHeight = Math.Max(newHeight, 20); // Minimum size
+
+                    tempBox.Size = new Size(newWidth, newHeight);
+                }
+                else if (isDragging)
+                {
+                    tempBox.Left += e.X - dragOffset.X;
+                    tempBox.Top += e.Y - dragOffset.Y;
+                }
+                else
+                {
+                    // Change cursor when hovering over resize handle
+                    Point checkResizeHandleArea = new Point(tempBox.Width - ResizeHandleSize, tempBox.Height - ResizeHandleSize);
+                    Rectangle checkResizeRect = new Rectangle(checkResizeHandleArea.X, checkResizeHandleArea.Y, ResizeHandleSize, ResizeHandleSize);
+
+                    if (checkResizeRect.Contains(e.Location))
+                    {
+                        tempBox.Cursor = Cursors.SizeNWSE;
+                    }
+                    else
+                    {
+                        tempBox.Cursor = Cursors.Default;
+                    }
+                }
+            };
+
+            tempBox.MouseUp += (s, e) =>
+            {
+                isDragging = false;
+                isResizing = false;
+                tempBox.Cursor = Cursors.Default;
+            };
+
+            panelCanvas.Controls.Add(tempBox);
+            tempBox.BringToFront();
+
+            // Temporarily disable panelCanvas drawing events and enable image commit event
+            panelCanvas.MouseDown -= PanelCanvas_MouseDown;
+            panelCanvas.MouseMove -= PanelCanvas_MouseMove;
+            panelCanvas.MouseUp -= PanelCanvas_MouseUp;
+            panelCanvas.MouseDown += Whiteboard_MouseDown_ForImageCommit;
+        }
+
+        private void Whiteboard_MouseDown_ForImageCommit(object sender, MouseEventArgs e)
+        {
+            if (tempBox != null && !tempBox.Bounds.Contains(e.Location)) // If click is outside tempBox
+            {
+                CommitTempImage();
+
+                // Re-enable panelCanvas drawing events
+                panelCanvas.MouseDown -= Whiteboard_MouseDown_ForImageCommit;
+                panelCanvas.MouseDown += PanelCanvas_MouseDown;
+                panelCanvas.MouseMove += PanelCanvas_MouseMove;
+                panelCanvas.MouseUp += PanelCanvas_MouseUp;
+            }
+        }
+
+        private void CommitTempImage()
+        {
+            if (tempBox == null || canvasBmp == null) return;
+
+            // Draw the temporary image onto the main canvas bitmap
+            lock (canvasLock)
+            {
+                using (var g2 = Graphics.FromImage(canvasBmp))
+                {
+                    g2.DrawImage(tempBox.Image, tempBox.Bounds);
+                }
+            }
+
+            // Remove the temporary PictureBox
+            panelCanvas.Controls.Remove(tempBox);
+            tempBox.Dispose(); // Dispose the tempBox to free resources
+            tempBox = null;
+            panelCanvas.Invalidate(); // Redraw the panel with the committed image
+
+            // Send the entire updated whiteboard image to the server
+            if (writer != null)
+            {
+                try
+                {
+                    byte[] data;
+                    lock (canvasLock)
+                    {
+                        using (var clone = new Bitmap(canvasBmp)) // Clone to avoid issues during serialization
+                        using (var ms = new MemoryStream())
+                        {
+                            clone.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                            data = ms.ToArray();
+                        }
+                    }
+
+                    writer.Write("IMAGE");
+                    writer.Write(data.Length);
+                    writer.Write(data);
+                    writer.Flush();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Lỗi khi gửi ảnh: " + ex.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
         }
     }
 }
