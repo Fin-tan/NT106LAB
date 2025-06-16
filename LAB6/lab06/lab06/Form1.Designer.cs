@@ -28,21 +28,21 @@
         /// </summary>
         private void InitializeComponent()
         {
-            pictureBox1 = new PictureBox();
+            panelCanvas = new Panel();
             btnConnect = new Button();
+            lblClientCount = new Label();
             btnColor = new Button();
             nudThickness = new NumericUpDown();
             btnEnd = new Button();
-            lblClientCount = new Label();
             ((System.ComponentModel.ISupportInitialize)nudThickness).BeginInit();
             SuspendLayout();
             // 
             // panelCanvas
             // 
-            pictureBox1.Location = new Point(38, 43);
-            pictureBox1.Name = "panelCanvas";
-            pictureBox1.Size = new Size(549, 332);
-            pictureBox1.TabIndex = 0;
+            panelCanvas.Location = new Point(38, 43);
+            panelCanvas.Name = "panelCanvas";
+            panelCanvas.Size = new Size(549, 332);
+            panelCanvas.TabIndex = 0;
             // 
             // btnConnect
             // 
@@ -52,6 +52,15 @@
             btnConnect.TabIndex = 1;
             btnConnect.Text = "connect";
             btnConnect.UseVisualStyleBackColor = true;
+            // 
+            // lblClientCount
+            // 
+            lblClientCount.AutoSize = true;
+            lblClientCount.Location = new Point(644, 114);
+            lblClientCount.Name = "lblClientCount";
+            lblClientCount.Size = new Size(38, 15);
+            lblClientCount.TabIndex = 2;
+            lblClientCount.Text = "label1";
             // 
             // btnColor
             // 
@@ -78,26 +87,17 @@
             btnEnd.Text = "end";
             btnEnd.UseVisualStyleBackColor = true;
             // 
-            // lblClientCount
-            // 
-            lblClientCount.AutoSize = true;
-            lblClientCount.Location = new Point(660, 125);
-            lblClientCount.Name = "lblClientCount";
-            lblClientCount.Size = new Size(38, 15);
-            lblClientCount.TabIndex = 6;
-            lblClientCount.Text = "label1";
-            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(800, 450);
-            Controls.Add(lblClientCount);
             Controls.Add(btnEnd);
             Controls.Add(nudThickness);
             Controls.Add(btnColor);
+            Controls.Add(lblClientCount);
             Controls.Add(btnConnect);
-            Controls.Add(pictureBox1);
+            Controls.Add(panelCanvas);
             Name = "Form1";
             Text = "Form1";
             ((System.ComponentModel.ISupportInitialize)nudThickness).EndInit();
@@ -107,11 +107,11 @@
 
         #endregion
 
-        private PictureBox pictureBox1;
+        private Panel panelCanvas;
         private Button btnConnect;
+        private Label lblClientCount;
         private Button btnColor;
         private NumericUpDown nudThickness;
         private Button btnEnd;
-        private Label lblClientCount;
     }
 }

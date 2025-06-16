@@ -40,21 +40,21 @@ namespace lab06
             nudThickness.ValueChanged += NudThickness_ValueChanged;
             btnEnd.Click += BtnEnd_Click;
 
-           
-            pictureBox1.MouseDown += PanelCanvas_MouseDown;
-            pictureBox1.MouseMove += PanelCanvas_MouseMove;
-            pictureBox1.MouseUp += PanelCanvas_MouseUp;
+            panelCanvas.Paint += PanelCanvas_Paint;
+            panelCanvas.MouseDown += PanelCanvas_MouseDown;
+            panelCanvas.MouseMove += PanelCanvas_MouseMove;
+            panelCanvas.MouseUp += PanelCanvas_MouseUp;
 
             lblClientCount.Text = "Clients: 0";
         }
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            canvasBmp = new Bitmap(pictureBox1.Width, pictureBox1.Height);
+            // Khởi tạo bitmap sau khi panelCanvas đã có kích thước từ Designer
+            canvasBmp = new Bitmap(panelCanvas.Width, panelCanvas.Height);
             canvasG = Graphics.FromImage(canvasBmp);
             canvasG.Clear(Color.White);
-            pictureBox1.Image = canvasBmp; // rất quan trọng!
-
+            panelCanvas.Invalidate();
         }
 
         private void PanelCanvas_Paint(object sender, PaintEventArgs e)
@@ -160,8 +160,7 @@ namespace lab06
                     using var pen = new Pen(color, width);
                     canvasG.DrawLine(pen, new Point(x1, y1), new Point(x2, y2));
                 }
-                Invoke(new Action(() => pictureBox1.Refresh()));
-
+                Invoke(new Action(() => panelCanvas.Invalidate()));
             }
             catch
             {
@@ -187,8 +186,7 @@ namespace lab06
                     canvasBmp = bmp;
                     canvasG = Graphics.FromImage(canvasBmp);
                 }
-                Invoke(new Action(() => pictureBox1.Refresh()));
-
+                Invoke(new Action(() => panelCanvas.Invalidate()));
             }
             catch
             {
@@ -229,7 +227,7 @@ namespace lab06
                 using var pen = new Pen(currentColor, currentThickness);
                 canvasG.DrawLine(pen, lastPoint, newPoint);
             }
-            Invoke(new Action(() => pictureBox1.Invalidate()));
+            Invoke(new Action(() => panelCanvas.Invalidate()));
             lastPoint = newPoint;
         }
 
@@ -326,7 +324,7 @@ namespace lab06
                 }
             }
             lblClientCount.Text = "Clients: 0";
-            pictureBox1.Invalidate();
+            panelCanvas.Invalidate();
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
